@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+polars
+scikit-learn
+numpy
+python-multipart
+pyarrow
+pandas
+openpyxl
+fastexcel
