@@ -1,5 +1,4 @@
 let currentMap = null;
-let currentChart = null;
 let currentData = null; // Store fetched data
 let layers = {
     structures: null,
@@ -140,6 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
             altFormat: 'd/m/Y',
             minDate: rango.min,
             maxDate: rango.max,
+            // static lo ancla al contenedor del input en vez de al body: asi
+            // viaja con el scroll del sidebar y no queda flotando encima
+            static: true,
             onDayCreate: (dObj, dStr, fp, dayElem) => {
                 if (diasConDatos.has(aISOLocal(dayElem.dateObj))) {
                     dayElem.classList.add('con-datos');
@@ -273,12 +275,6 @@ function renderDashboard(data) {
 
     // Render Map
     renderMap(data);
-
-    // Render Chart
-    renderChart(data.rayos);
-
-    // Render Table
-    renderTable(data.impactos);
 }
 
 function renderMap(data) {
@@ -394,68 +390,4 @@ function renderMap(data) {
             layers.strikes.addTo(currentMap);
         }
     }
-}
-
-function renderChart(rayos) {
-    if(currentChart) {
-        currentChart.destroy();
-    }
-
-    const corrientes = rayos.map(r => r.corriente).filter(c => c > 0);
-    
-    // Create bins manually
-    const binSize = 10;
-    const bins = {};
-    corrientes.forEach(c => {
-        const bin = Math.floor(c / binSize) * binSize;
-        bins[bin] = (bins[bin] || 0) + 1;
-    });
-
-    const sortedBins = Object.keys(bins).map(Number).sort((a,b) => a-b);
-    const labels = sortedBins.map(b => `${b}-${b+binSize} kA`);
-    const data = sortedBins.map(b => bins[b]);
-
-    const ctx = document.getElementById('chartCorriente').getContext('2d');
-    
-    Chart.defaults.color = '#94a3b8';
-    currentChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Frecuencia',
-                data: data,
-                backgroundColor: 'rgba(59, 130, 246, 0.5)',
-                borderColor: 'rgba(59, 130, 246, 1)',
-                borderWidth: 1,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                x: { grid: { display: false } }
-            }
-        }
-    });
-}
-
-function renderTable(impactos) {
-    const tbody = document.querySelector('#impactTable tbody');
-    tbody.innerHTML = '';
-    
-    // Sort by impacts DESC
-    impactos.sort((a,b) => b.N_Impactos - a.N_Impactos).forEach(imp => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><b>${imp.TAG}</b></td>
-            <td>${imp.Circuito}</td>
-            <td><span style="color:var(--warning);font-weight:bold">${imp.N_Impactos}</span></td>
-            <td>${imp.Corriente_Max_kA}</td>
-        `;
-        tbody.appendChild(tr);
-    });
 }

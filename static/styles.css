@@ -180,7 +180,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .highlight-warning { color: var(--warning); }
 
 /* Map Section */
-.map-section { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; min-height: 700px; }
+/* Sin las secciones de abajo el mapa es el unico contenido: ocupa el alto
+   disponible en vez de quedar clavado en 600px con scroll de sobra */
+.map-section { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; min-height: 0; }
 .map-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
 .map-header h2 { font-size: 1.2rem; }
 .map-controls label { margin-left: 1rem; font-size: 0.9rem; cursor: pointer; color: var(--text-secondary); }
@@ -195,20 +197,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .bolt.old { color: #f59e0b; } /* Yellow/Orange */
 .bolt.recent { color: #ef4444; } /* Red */
 
-#map { width: 100%; height: 600px; border-radius: 12px; z-index: 1; flex-grow: 1; }
-
-/* Data Section (Charts & Tables) */
-.data-section { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-@media (max-width: 1200px) { .data-section { grid-template-columns: 1fr; } }
-
-.chart-container, .table-container { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; height: 400px;}
-.chart-container h2, .table-container h2 { font-size: 1.1rem; border-bottom: 1px solid var(--card-border); padding-bottom: 0.8rem; }
-
-.table-scroll { overflow-y: auto; flex-grow: 1; }
-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-th { text-align: left; padding: 0.8rem; color: var(--text-secondary); border-bottom: 1px solid var(--card-border); position: sticky; top: 0; background: rgba(0, 0, 0, 0.9); z-index: 10; }
-td { padding: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
-tbody tr:hover { background: rgba(255,255,255,0.05); }
+#map { width: 100%; height: auto; min-height: 380px; border-radius: 12px; z-index: 1; flex-grow: 1; }
 
 /* Logos */
 .landing-logos {
@@ -228,6 +217,14 @@ tbody tr:hover { background: rgba(255,255,255,0.05); }
 }
 
 /* Calendario de fechas (flatpickr) */
+/* Se abre dentro del sidebar y empuja los campos de abajo en vez de flotar
+   sobre ellos, para que el scroll no lo deje descolgado del input */
+.flatpickr-wrapper { width: 100%; }
+.flatpickr-calendar.static { position: relative; top: 0; width: 100%; max-width: 100%; box-shadow: none; margin-top: 0.5rem; }
+.flatpickr-calendar.static .flatpickr-rContainer, .flatpickr-calendar.static .flatpickr-days { width: 100%; max-width: 100%; }
+.flatpickr-calendar.static .dayContainer { width: 100%; max-width: 100%; min-width: 0; }
+.flatpickr-calendar.static .flatpickr-day { max-width: none; flex-basis: 14.2857%; height: 34px; line-height: 34px; }
+
 .flatpickr-day.con-datos { background: #d1fae5; border-color: #a7f3d0; color: #065f46; font-weight: 600; }
 .flatpickr-day.con-datos:hover { background: #a7f3d0; border-color: #6ee7b7; }
 .flatpickr-day.selected, .flatpickr-day.selected.con-datos, .flatpickr-day.selected:hover { background: var(--accent-primary); border-color: var(--accent-primary); color: #fff; }
