@@ -263,7 +263,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* La mancha es contexto, no el dato: se atenua para que las estructuras
    sigan siendo lo primero que ve el ojo */
-.leaflet-heatmap-layer { opacity: var(--opacidad-calor, 0.35); transition: opacity 0.15s ease; }
+.leaflet-heatmap-layer { opacity: var(--opacidad-calor, 0.6); transition: opacity 0.15s ease; }
 .heat-umbral input[type="range"] { width: 110px; accent-color: var(--accent-primary); cursor: pointer; }
 .heat-umbral output { min-width: 62px; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 

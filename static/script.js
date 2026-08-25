@@ -660,12 +660,15 @@ function dibujarCriticidad(data, min, max) {
     if (typeof L.heatLayer !== 'undefined' && visibles.length > 0) {
         const puntos = visibles.map(e => [e.lat, e.lon, e.impactos]);
         layers.calorFondo = L.heatLayer(puntos, {
-            radius: 28,
-            blur: 24,
+            // Radio grande y desenfoque generoso: la mancha tiene que desbordar
+            // el punto y fundirse con la de al lado para que se lean zonas de
+            // densidad, no un halo por estructura
+            radius: 42,
+            blur: 30,
             maxZoom: 18,
             // Sin max explicito la libreria normaliza contra 1.0 y satura todo
             max: Math.max(...visibles.map(e => e.impactos)),
-            minOpacity: 0.2,
+            minOpacity: 0.3,
             gradient: { 0.0: '#1d4ed8', 0.35: '#06b6d4', 0.6: '#facc15', 0.8: '#f97316', 1.0: '#dc2626' }
         });
         layers.calorFondo.addTo(currentMap);
