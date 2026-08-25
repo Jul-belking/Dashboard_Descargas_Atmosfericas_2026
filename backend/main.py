@@ -13,6 +13,11 @@ import uvicorn
 
 app = FastAPI(title="App Descargas Atmosféricas 2026")
 
+# Fuentes de datos. El maestro manda la jerarquia de filtros y el inventario
+# las estructuras; se cruzan por circuito (ver /api/procesar)
+ARCHIVO_LOCALIZACIONES = "Localizaciones_Final.xlsx"
+ARCHIVO_INVENTARIO = "Inventario_Estructuras_y_DPS_Final.xlsx"
+
 # Montar frontend estático
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -62,7 +67,7 @@ async def procesar_datos(
     try:
         # Archivos locales montados en el contenedor Docker en /app
         archivo_descargas = "Gold_Consolidado_Historico_Descargas_Electricas_GPK.parquet"
-        archivo_postes = "Inventario_Estructuras_y_DPS.csv"
+        archivo_postes = ARCHIVO_INVENTARIO
 
         try:
             # Detectar las columnas disponibles para leer lo minimo necesario
@@ -102,9 +107,7 @@ async def procesar_datos(
             raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo de descargas local: {str(e)}")
 
         try:
-            with open(archivo_postes, 'r', encoding='latin-1') as f:
-                content_postes = f.read()
-            df_postes = pl.read_csv(io.BytesIO(content_postes.encode('utf-8')))
+            df_postes = pl.from_pandas(pd.read_excel(archivo_postes))
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo de postes local: {str(e)}")
 
@@ -140,25 +143,39 @@ async def procesar_datos(
             pl.col("lat_clean").is_not_null() & pl.col("lon_clean").is_not_null()
         )
 
-        # Filtros en cascada desde Localizaciones.xlsx
+        # Filtros en cascada desde el maestro de localizaciones.
+        # La llave entre las dos tablas es el circuito: "PORTICO / SWG / TRAMO"
+        # del maestro se corresponde con "Circuito_Corregido" del inventario.
+        # (Antes se comparaba contra el tag de la estructura, que pertenece a
+        # otro dominio de valores, y por eso el filtro no devolvia nunca nada.)
         if filtro_campo or filtro_locacion or filtro_portico:
+            if circuito_col not in df_postes.columns:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El inventario no tiene la columna '{circuito_col}', necesaria para filtrar."
+                )
             try:
-                df_loc = pd.read_excel("Localizaciones.xlsx").dropna(subset=['CAMPO', 'LOCACION / CIRCUITO', 'PORTICO / SWG / TRAMO'])
+                df_loc = pd.read_excel(ARCHIVO_LOCALIZACIONES).dropna(subset=['CAMPO', 'LOCACION / CIRCUITO', 'PORTICO / SWG / TRAMO'])
                 # Filtro solicitado por usuario: CLASIF2 == "CIRCUITOS"
                 df_loc = df_loc[df_loc['CLASIF2'].astype(str).str.strip().str.upper() == "CIRCUITOS"]
-                
+
                 if filtro_campo:
                     df_loc = df_loc[df_loc['CAMPO'].astype(str).str.strip() == filtro_campo]
                 if filtro_locacion:
                     df_loc = df_loc[df_loc['LOCACION / CIRCUITO'].astype(str).str.strip() == filtro_locacion]
                 if filtro_portico:
                     df_loc = df_loc[df_loc['PORTICO / SWG / TRAMO'].astype(str).str.strip() == filtro_portico]
-                porticos_validos = df_loc['PORTICO / SWG / TRAMO'].astype(str).str.strip().tolist()
+
+                circuitos_validos = df_loc['PORTICO / SWG / TRAMO'].astype(str).str.strip().unique().tolist()
                 df_postes = df_postes.filter(
-                    pl.col(id_poste_col).cast(pl.Utf8).str.strip_chars().is_in(porticos_validos)
+                    pl.col(circuito_col).cast(pl.Utf8).str.strip_chars().is_in(circuitos_validos)
                 )
+            except HTTPException:
+                raise
             except Exception as e:
-                print(f"Error aplicando filtros de Localizaciones.xlsx: {e}")
+                # Antes esto solo se imprimia: el filtro fallaba en silencio y el
+                # usuario recibia el universo completo creyendo haber filtrado
+                raise HTTPException(status_code=400, detail=f"No se pudieron aplicar los filtros de ubicación: {str(e)}")
 
         # Preparar datos de descargas
         cols_desc = [lat_desc_col, lon_desc_col]
@@ -283,7 +300,7 @@ async def procesar_datos(
 @app.get("/api/filtros")
 async def obtener_filtros():
     try:
-        df_loc = pd.read_excel("Localizaciones.xlsx")
+        df_loc = pd.read_excel(ARCHIVO_LOCALIZACIONES)
         jerarquia = {}
         df_loc = df_loc.dropna(subset=['CAMPO', 'LOCACION / CIRCUITO', 'PORTICO / SWG / TRAMO'])
         
