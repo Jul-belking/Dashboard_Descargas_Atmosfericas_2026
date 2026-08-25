@@ -189,12 +189,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // Drag and Drop (Removido para usar archivos locales)
 
 
-    // Form Submission
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    // Los filtros de ubicacion recalculan solos al cambiar; el boton queda
+    // para los parametros de analisis, donde el usuario suele encadenar
+    // varios ajustes antes de querer el resultado.
+    const selectsUbicacion = [filtroCampo, filtroLocacion, filtroPortico].filter(Boolean);
+
+    // Un cambio rapido de filtros puede dejar dos peticiones en vuelo. Se
+    // numeran para descartar la respuesta vieja si llega despues de la nueva.
+    let peticionActual = 0;
+    let estadoSelects = null;
+
+    function setCargando(activo) {
+        btnSubmit.disabled = activo;
+        btnText.textContent = activo ? 'Calculando...' : '🚀 Analizar Datos';
+        spinner.style.display = activo ? 'block' : 'none';
+
+        // Los selects hijos tienen su propio disabled segun la cascada, asi
+        // que se guarda el estado previo en vez de rehabilitarlos todos
+        if (activo) {
+            if (!estadoSelects) estadoSelects = selectsUbicacion.map(s => s.disabled);
+            selectsUbicacion.forEach(s => { s.disabled = true; });
+        } else if (estadoSelects) {
+            selectsUbicacion.forEach((s, i) => { s.disabled = estadoSelects[i]; });
+            estadoSelects = null;
+        }
+    }
+
+    async function ejecutarAnalisis() {
+        const miPeticion = ++peticionActual;
         statusMessage.className = 'status-message';
         statusMessage.textContent = '';
-        
+
         const radioBusqueda = document.getElementById('radioBusqueda').value;
         const fechaInicio = document.getElementById('fechaInicio').value;
         const fechaFin = document.getElementById('fechaFin').value;
@@ -210,9 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (locacion) formData.append('filtro_locacion', locacion);
         if (portico) formData.append('filtro_portico', portico);
 
-        btnSubmit.disabled = true;
-        btnText.textContent = 'Calculando...';
-        spinner.style.display = 'block';
+        setCargando(true);
 
         try {
             const response = await fetch('/api/procesar', {
@@ -220,12 +243,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: formData
             });
 
+            // Quedo obsoleta: ya salio otra peticion mas nueva
+            if (miPeticion !== peticionActual) return;
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Error en procesamiento');
             }
 
             const data = await response.json();
+            if (miPeticion !== peticionActual) return;
+
             currentData = data; // Guardar estado global
 
             // Switch views
@@ -244,14 +272,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
         } catch (error) {
+            if (miPeticion !== peticionActual) return;
             console.error(error);
             showStatus(error.message, 'error');
         } finally {
-            btnSubmit.disabled = false;
-            btnText.textContent = '🚀 Analizar Datos';
-            spinner.style.display = 'none';
+            // Solo la peticion vigente devuelve la UI a su estado normal, para
+            // que una respuesta vieja no apague el spinner de la que sigue viva
+            if (miPeticion === peticionActual) setCargando(false);
         }
+    }
+
+    // El boton aplica los parametros de analisis (fechas y radio)
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        ejecutarAnalisis();
     });
+
+    // Los filtros de ubicacion se aplican solos
+    selectsUbicacion.forEach(sel => sel.addEventListener('change', ejecutarAnalisis));
 
     // Map Mode Listeners
     document.querySelectorAll('input[name="mapMode"]').forEach(radio => {
