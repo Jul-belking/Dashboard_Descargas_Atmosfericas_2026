@@ -222,6 +222,10 @@ async def procesar_datos(
 
         ids_rayos_a_mostrar = set()
         resumen_impactos = []
+
+        # Impactos de cada poste en el mismo orden que df_postes, para poder
+        # ponderar el mapa de calor estructura por estructura
+        impactos_por_poste = [len(idx) for idx in indices]
         
         dps_col = "DPS" if "DPS" in df_postes.columns else ("DPS_Pararrayos" if "DPS_Pararrayos" in df_postes.columns else None)
 
@@ -264,6 +268,7 @@ async def procesar_datos(
                 "lat": row["lat_clean"],
                 "lon": row["lon_clean"],
                 "protegido": tiene_dsd or tiene_dps,
+                "impactos": impactos_por_poste[i] if i < len(impactos_por_poste) else 0,
                 "detalles": {
                     "Circuito": row.get(circuito_col, "N/A"),
                     "DSD": row.get("DSD", "No"),

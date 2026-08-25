@@ -333,6 +333,39 @@ function renderDashboard(data) {
     renderMap(data);
 }
 
+// Una estructura sin DPS ni DSD que recibe los mismos rayos que una protegida
+// esta mas expuesta: es donde conviene invertir. El factor la hace pesar un 50%
+// mas en el mapa de calor.
+const FACTOR_DESPROTEGIDA = 1.5;
+
+function criticidad(est) {
+    return (est.impactos || 0) * (est.protegido ? 1 : FACTOR_DESPROTEGIDA);
+}
+
+// La escala es relativa a lo que se esta viendo: el rojo marca siempre la peor
+// estructura del recorte actual. Sin la leyenda el color seria ambiguo, porque
+// el mismo tono significa cosas distintas segun el filtro.
+function renderLeyendaCalor(estructuras) {
+    const caja = document.getElementById('heatLegend');
+    if (!caja) return;
+
+    const impactos = estructuras.map(e => e.impactos || 0).filter(n => n > 0);
+    if (impactos.length === 0) {
+        caja.style.display = 'none';
+        return;
+    }
+
+    const min = Math.min(...impactos);
+    const max = Math.max(...impactos);
+    const desprotegidas = estructuras.filter(e => !e.protegido && (e.impactos || 0) > 0).length;
+
+    document.getElementById('heatMin').textContent = min.toLocaleString('es-CO');
+    document.getElementById('heatMax').textContent = max.toLocaleString('es-CO');
+    document.getElementById('heatNota').textContent =
+        `${desprotegidas.toLocaleString('es-CO')} sin DPS/DSD pesan ×${FACTOR_DESPROTEGIDA.toLocaleString('es-CO')}`;
+    caja.style.display = 'flex';
+}
+
 function renderMap(data) {
     if (!currentMap) {
         // Init Map
@@ -356,14 +389,21 @@ function renderMap(data) {
     layers.radii = L.layerGroup();
     layers.strikes = L.layerGroup();
 
+    const mode = document.querySelector('input[name="mapMode"]:checked').value;
+    // En modo calor los marcadores y los circulos de radio taparian el
+    // gradiente, que es justamente lo que se quiere leer
+    const mostrarEstructuras = mode !== 'heatmap';
+
     // Draw Structures
     let bounds = L.latLngBounds();
     data.estructuras.forEach(est => {
         let latLng = [est.lat, est.lon];
         bounds.extend(latLng);
 
+        if (!mostrarEstructuras) return;
+
         let color = est.protegido ? '#9333ea' : '#2563eb';
-        
+
         // Circle Marker
         L.circleMarker(latLng, {
             radius: 6,
@@ -390,16 +430,18 @@ function renderMap(data) {
         }).addTo(layers.radii);
     });
 
-    layers.radii.addTo(currentMap);
-    layers.structures.addTo(currentMap);
+    if (mostrarEstructuras) {
+        layers.radii.addTo(currentMap);
+        layers.structures.addTo(currentMap);
+    }
 
     if (data.estructuras.length > 0) {
         currentMap.fitBounds(bounds, {padding: [50, 50]});
     }
 
-    // Draw Strikes based on mode
-    const mode = document.querySelector('input[name="mapMode"]:checked').value;
-    
+    const leyendaCalor = document.getElementById('heatLegend');
+    if (leyendaCalor && mode !== 'heatmap') leyendaCalor.style.display = 'none';
+
     if (mode === 'timeline') {
         const total = data.rayos.length;
         
@@ -435,15 +477,29 @@ function renderMap(data) {
         layers.strikes.addTo(currentMap);
 
     } else if (mode === 'heatmap') {
-        if (typeof L.heatLayer !== 'undefined') {
-            const heatData = data.rayos.map(r => [r.lat, r.lon, 1]); // uniform weight
-            layers.strikes = L.heatLayer(heatData, {
-                radius: 25,
-                blur: 20,
-                maxZoom: 18,
-                gradient: {0.2: 'blue', 0.45: 'cyan', 0.65: 'lime', 0.85: 'orange', 1.0: 'red'}
-            });
-            layers.strikes.addTo(currentMap);
+        if (typeof L.heatLayer === 'undefined') {
+            console.error('Leaflet.heat no cargó: no se puede dibujar el mapa de calor');
+            return;
         }
+
+        // El calor sale de las ESTRUCTURAS, no de los rayos: la pregunta es
+        // cuales estan mas golpeadas, no donde hubo tormenta
+        const afectadas = data.estructuras.filter(e => (e.impactos || 0) > 0);
+        const heatData = afectadas.map(e => [e.lat, e.lon, criticidad(e)]);
+        const maxCrit = heatData.length ? Math.max(...heatData.map(p => p[2])) : 1;
+
+        layers.strikes = L.heatLayer(heatData, {
+            radius: 22,
+            blur: 18,
+            maxZoom: 18,
+            // Sin max explicito la libreria normaliza contra 1.0 y satura todo
+            // en rojo: aca se ancla al peor valor del recorte visible
+            max: maxCrit,
+            minOpacity: 0.35,
+            gradient: {0.0: '#1d4ed8', 0.35: '#06b6d4', 0.6: '#facc15', 0.8: '#f97316', 1.0: '#dc2626'}
+        });
+        layers.strikes.addTo(currentMap);
+
+        renderLeyendaCalor(data.estructuras);
     }
 }

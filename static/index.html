@@ -138,10 +138,10 @@
                     <h2>Vista Satelital</h2>
                     <div class="map-controls">
                         <label>
-                            <input type="radio" name="mapMode" value="timeline" checked> 📍 Línea de Tiempo
+                            <input type="radio" name="mapMode" value="timeline" checked> Línea de Tiempo
                         </label>
                         <label>
-                            <input type="radio" name="mapMode" value="heatmap"> 🔥 Mapa de Calor
+                            <input type="radio" name="mapMode" value="heatmap"> Mapa de Calor
                         </label>
                     </div>
                 </div>
@@ -151,6 +151,14 @@
                     <span class="legend-item"><span class="dot prot"></span> DSD/DPS</span>
                     <span class="legend-item"><span class="bolt old">⚡</span> Rayos antiguos</span>
                     <span class="legend-item"><span class="bolt recent">⚡</span> Rayos recientes</span>
+                </div>
+
+                <div class="heat-legend" id="heatLegend" style="display: none;">
+                    <span class="heat-label">Criticidad de estructuras</span>
+                    <span class="heat-min"><span id="heatMin">0</span> impactos</span>
+                    <span class="heat-bar"></span>
+                    <span class="heat-max"><span id="heatMax">0</span> impactos</span>
+                    <span class="heat-nota" id="heatNota"></span>
                 </div>
                 
                 <div id="map"></div>

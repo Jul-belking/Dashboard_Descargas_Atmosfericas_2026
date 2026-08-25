@@ -251,6 +251,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .bolt.old { color: #f59e0b; } /* Yellow/Orange */
 .bolt.recent { color: #ef4444; } /* Red */
 
+/* Leyenda del mapa de calor: la escala es relativa al recorte visible, asi que
+   sin los extremos numericos el color no significaria nada concreto */
+.heat-legend { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-secondary); padding-bottom: 0.5rem; border-bottom: 1px solid var(--card-border); }
+.heat-legend .heat-label { font-weight: 600; color: var(--text-primary); }
+.heat-legend .heat-bar { width: 160px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #1d4ed8 0%, #06b6d4 35%, #facc15 60%, #f97316 80%, #dc2626 100%); }
+.heat-legend .heat-nota { margin-left: auto; opacity: 0.8; }
+
 #map { width: 100%; height: auto; min-height: 380px; border-radius: 12px; z-index: 1; flex-grow: 1; }
 
 /* Logos */
