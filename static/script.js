@@ -311,18 +311,22 @@ function renderDashboard(data) {
     document.getElementById('kpiTotalRayos').textContent = data.kpis.total_rayos.toLocaleString('es-CO');
     document.getElementById('kpiRadio').textContent = data.kpis.radio;
 
-    // Cuanto del total del rango llego a amenazar una estructura
     const enRango = data.kpis.total_rayos_rango || 0;
     document.getElementById('kpiRayosRango').textContent = enRango.toLocaleString('es-CO');
 
-    const proporcion = document.getElementById('kpiProporcion');
+    // Tasa de exposicion: cuanto del total del rango llego a caer dentro del
+    // radio de alguna estructura. es-CO da coma decimal y punto de miles
+    const tasa = document.getElementById('kpiTasaExposicion');
     if (enRango > 0) {
         const pct = (100 * data.kpis.total_rayos) / enRango;
-        // Por debajo de 0.1% el redondeo a un decimal mostraria "0,0%"
-        const txt = pct > 0 && pct < 0.1 ? '<0,1' : pct.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-        proporcion.textContent = `${txt}% del total del rango`;
+        // Por debajo de 0,01% el redondeo mostraria "0,00 %", que se leeria
+        // como que no cayo ninguno
+        const txt = pct > 0 && pct < 0.01
+            ? '<0,01'
+            : pct.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        tasa.textContent = `${txt} %`;
     } else {
-        proporcion.textContent = '';
+        tasa.textContent = '—';
     }
 
     // Render Map
