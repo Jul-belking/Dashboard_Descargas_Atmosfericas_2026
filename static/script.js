@@ -333,36 +333,39 @@ function renderDashboard(data) {
     renderMap(data);
 }
 
-// Una estructura sin DPS ni DSD que recibe los mismos rayos que una protegida
-// esta mas expuesta: es donde conviene invertir. El factor la hace pesar un 50%
-// mas en el mapa de calor.
-const FACTOR_DESPROTEGIDA = 1.5;
+// Paradas del gradiente de criticidad. Las mismas que usa la barra de la
+// leyenda en styles.css: si se cambian aca, cambiarlas alla tambien.
+const ESCALA_CALOR = [
+    { t: 0.00, rgb: [29, 78, 216] },
+    { t: 0.35, rgb: [6, 182, 212] },
+    { t: 0.60, rgb: [250, 204, 21] },
+    { t: 0.80, rgb: [249, 115, 22] },
+    { t: 1.00, rgb: [220, 38, 38] }
+];
 
-function criticidad(est) {
-    return (est.impactos || 0) * (est.protegido ? 1 : FACTOR_DESPROTEGIDA);
+// t va de 0 a 1 e interpola entre las paradas contiguas
+function colorCriticidad(t) {
+    t = Math.max(0, Math.min(1, t));
+    for (let i = 1; i < ESCALA_CALOR.length; i++) {
+        const a = ESCALA_CALOR[i - 1], b = ESCALA_CALOR[i];
+        if (t <= b.t) {
+            const f = (t - a.t) / (b.t - a.t);
+            const c = a.rgb.map((v, j) => Math.round(v + f * (b.rgb[j] - v)));
+            return `rgb(${c[0]},${c[1]},${c[2]})`;
+        }
+    }
+    return `rgb(${ESCALA_CALOR[ESCALA_CALOR.length - 1].rgb.join(',')})`;
 }
 
 // La escala es relativa a lo que se esta viendo: el rojo marca siempre la peor
 // estructura del recorte actual. Sin la leyenda el color seria ambiguo, porque
 // el mismo tono significa cosas distintas segun el filtro.
-function renderLeyendaCalor(estructuras) {
+function renderLeyendaCalor(min, max) {
     const caja = document.getElementById('heatLegend');
     if (!caja) return;
 
-    const impactos = estructuras.map(e => e.impactos || 0).filter(n => n > 0);
-    if (impactos.length === 0) {
-        caja.style.display = 'none';
-        return;
-    }
-
-    const min = Math.min(...impactos);
-    const max = Math.max(...impactos);
-    const desprotegidas = estructuras.filter(e => !e.protegido && (e.impactos || 0) > 0).length;
-
     document.getElementById('heatMin').textContent = min.toLocaleString('es-CO');
     document.getElementById('heatMax').textContent = max.toLocaleString('es-CO');
-    document.getElementById('heatNota').textContent =
-        `${desprotegidas.toLocaleString('es-CO')} sin DPS/DSD pesan ×${FACTOR_DESPROTEGIDA.toLocaleString('es-CO')}`;
     caja.style.display = 'flex';
 }
 
@@ -477,29 +480,46 @@ function renderMap(data) {
         layers.strikes.addTo(currentMap);
 
     } else if (mode === 'heatmap') {
-        if (typeof L.heatLayer === 'undefined') {
-            console.error('Leaflet.heat no cargó: no se puede dibujar el mapa de calor');
+        // Cada estructura sigue siendo su propio punto, coloreado y dimensionado
+        // segun cuantos impactos recibio. Una mancha difusa perderia el detalle
+        // por estructura, que es justamente lo que se quiere identificar.
+        const impactos = data.estructuras.map(e => e.impactos || 0).filter(n => n > 0);
+        if (impactos.length === 0) {
+            const caja = document.getElementById('heatLegend');
+            if (caja) caja.style.display = 'none';
             return;
         }
 
-        // El calor sale de las ESTRUCTURAS, no de los rayos: la pregunta es
-        // cuales estan mas golpeadas, no donde hubo tormenta
-        const afectadas = data.estructuras.filter(e => (e.impactos || 0) > 0);
-        const heatData = afectadas.map(e => [e.lat, e.lon, criticidad(e)]);
-        const maxCrit = heatData.length ? Math.max(...heatData.map(p => p[2])) : 1;
+        const min = Math.min(...impactos);
+        const max = Math.max(...impactos);
+        // Con un solo valor distinto no hay rango que normalizar: todo al tope
+        const rango = max - min || 1;
 
-        layers.strikes = L.heatLayer(heatData, {
-            radius: 22,
-            blur: 18,
-            maxZoom: 18,
-            // Sin max explicito la libreria normaliza contra 1.0 y satura todo
-            // en rojo: aca se ancla al peor valor del recorte visible
-            max: maxCrit,
-            minOpacity: 0.35,
-            gradient: {0.0: '#1d4ed8', 0.35: '#06b6d4', 0.6: '#facc15', 0.8: '#f97316', 1.0: '#dc2626'}
+        data.estructuras.forEach(est => {
+            const n = est.impactos || 0;
+            const t = n > 0 ? (n - min) / rango : 0;
+
+            // Las estructuras sin impactos quedan como puntos grises chicos:
+            // sirven para ver el trazado completo de la red y donde no paso nada
+            const sinImpactos = n === 0;
+
+            L.circleMarker([est.lat, est.lon], {
+                radius: sinImpactos ? 3 : 5 + t * 6,
+                fillColor: sinImpactos ? '#6b7280' : colorCriticidad(t),
+                color: sinImpactos ? 'rgba(255,255,255,0.35)' : '#fff',
+                weight: sinImpactos ? 1 : 1.5,
+                opacity: 1,
+                fillOpacity: sinImpactos ? 0.5 : 0.95
+            }).bindPopup(`
+                <b>TAG:</b> ${est.id}<br>
+                <b>Circuito:</b> ${est.detalles.Circuito}<br>
+                <b>Impactos:</b> ${n.toLocaleString('es-CO')}<br>
+                <b>DSD:</b> ${est.detalles.DSD}<br>
+                <b>DPS:</b> ${est.detalles.DPS}
+            `).addTo(layers.strikes);
         });
-        layers.strikes.addTo(currentMap);
 
-        renderLeyendaCalor(data.estructuras);
+        layers.strikes.addTo(currentMap);
+        renderLeyendaCalor(min, max);
     }
 }

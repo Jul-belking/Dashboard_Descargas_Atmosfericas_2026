@@ -231,7 +231,38 @@ se lea como medida de riesgo, hay que acotar el denominador.
 
 ---
 
-## 9. Calidad de datos
+## 9. Ponderar la criticidad por nivel de protección
+
+**Estado:** implementado y luego retirado a pedido · **Impacto:** medio · **Esfuerzo:** muy bajo
+
+Hoy el mapa de calor colorea cada estructura solo por su cantidad de impactos.
+Se probó ponderar además por si la estructura tiene protección: una sin DPS ni
+DSD que recibe los mismos rayos que una protegida está más expuesta, y es donde
+conviene invertir. La fórmula era:
+
+```
+criticidad = impactos × 1,5   si no tiene DPS ni DSD
+             impactos × 1     si está protegida
+```
+
+Se retiró para simplificar la lectura del mapa. Vale la pena retomarlo, pero
+con un dato en mente que salió al medirlo:
+
+**367 de las 398 estructuras afectadas (92 %) no tienen ni DPS ni DSD.**
+
+Con esa proporción, el factor se aplica a casi todo el conjunto, así que en la
+práctica no destaca a las desprotegidas: *atenúa* a las 31 protegidas. El efecto
+visual es mucho menor de lo que uno esperaría.
+
+Ese 92 % es, por sí solo, probablemente el hallazgo más accionable del proyecto
+hasta ahora, y quizá merece una tarjeta propia más que un factor de color.
+
+Si se retoma, conviene definir el peso con criterio técnico (qué reducción de
+riesgo real aporta un DPS) en vez de un 1,5 elegido a ojo.
+
+---
+
+## 10. Calidad de datos
 
 **Estado:** para revisar con Felipe / Geopark
 
@@ -256,7 +287,7 @@ diferencias de código con diferencias de datos.
 
 ---
 
-## 10. Cruzar con el registro de fallas reales
+## 11. Cruzar con el registro de fallas reales
 
 **Estado:** idea · **Impacto:** el más alto de la lista · **Esfuerzo:** alto (depende de datos externos)
 
@@ -280,7 +311,7 @@ cualitativamente distinto:
 
 ---
 
-## 11. Limpieza menor
+## 12. Limpieza menor
 
 - `docker-compose.yml` conserva la línea `version: '3.8'`, obsoleta en las
   versiones actuales de Docker. Genera un warning en cada comando y se puede
