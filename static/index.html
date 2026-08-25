@@ -48,48 +48,54 @@
 
             <form id="uploadForm">
                 
-                <div class="options-wrapper" style="margin-bottom: 10px;">
-                    <label for="filtroCampo">CAMPO:</label>
-                    <select id="filtroCampo" class="form-select">
-                        <option value="">-- Todos --</option>
-                    </select>
-                </div>
+                <fieldset class="filter-group">
+                    <legend>Ubicación</legend>
 
-                <div class="options-wrapper" style="margin-bottom: 10px;">
-                    <label for="filtroLocacion">LOCACION / CIRCUITO:</label>
-                    <select id="filtroLocacion" class="form-select" disabled>
-                        <option value="">-- Todos --</option>
-                    </select>
-                </div>
+                    <div class="options-wrapper">
+                        <label for="filtroCampo">Campo</label>
+                        <select id="filtroCampo" class="form-select">
+                            <option value="">-- Todos --</option>
+                        </select>
+                    </div>
 
-                <div class="options-wrapper" style="margin-bottom: 10px;">
-                    <label for="filtroPortico">PORTICO / SWG / TRAMO:</label>
-                    <select id="filtroPortico" class="form-select" disabled>
-                        <option value="">-- Todos --</option>
-                    </select>
-                </div>
-                
-                <hr style="border-color: var(--card-border); margin-bottom: 10px;">
+                    <div class="options-wrapper">
+                        <label for="filtroLocacion">Locación / circuito</label>
+                        <select id="filtroLocacion" class="form-select" disabled>
+                            <option value="">-- Todos --</option>
+                        </select>
+                    </div>
 
-                <div class="options-wrapper">
-                    <label for="fechaInicio">Fecha Inicial:</label>
-                    <input type="date" id="fechaInicio">
-                </div>
+                    <div class="options-wrapper">
+                        <label for="filtroPortico">Pórtico / SWG / tramo</label>
+                        <select id="filtroPortico" class="form-select" disabled>
+                            <option value="">-- Todos --</option>
+                        </select>
+                    </div>
+                </fieldset>
 
-                <div class="options-wrapper" style="margin-top: 10px;">
-                    <label for="fechaFin">Fecha Final:</label>
-                    <input type="date" id="fechaFin">
-                </div>
+                <fieldset class="filter-group">
+                    <legend>Parámetros de análisis</legend>
 
-                <div class="date-legend" id="dateLegend">
-                    <span class="legend-row"><span class="day-swatch has-data"></span> Días con descargas registradas</span>
-                    <span class="legend-row"><span class="day-swatch no-data"></span> Días sin datos para procesar</span>
-                </div>
+                    <div class="options-wrapper">
+                        <label for="fechaInicio">Fecha inicial</label>
+                        <input type="date" id="fechaInicio">
+                    </div>
 
-                <div class="options-wrapper" style="margin-top: 10px;">
-                    <label for="radioBusqueda">Radio de Búsqueda Máximo (m):</label>
-                    <input type="number" id="radioBusqueda" value="500" min="1" required>
-                </div>
+                    <div class="options-wrapper">
+                        <label for="fechaFin">Fecha final</label>
+                        <input type="date" id="fechaFin">
+                    </div>
+
+                    <div class="date-legend" id="dateLegend">
+                        <span class="legend-row"><span class="day-swatch has-data"></span> Días con descargas registradas</span>
+                        <span class="legend-row"><span class="day-swatch no-data"></span> Días sin descargas registradas</span>
+                    </div>
+
+                    <div class="options-wrapper">
+                        <label for="radioBusqueda">Radio de búsqueda (m)</label>
+                        <input type="number" id="radioBusqueda" value="500" min="1" required>
+                    </div>
+                </fieldset>
 
                 <button type="submit" class="btn-primary" id="btnSubmit">
                     <span>🚀 Analizar Datos</span>
