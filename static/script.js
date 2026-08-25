@@ -84,20 +84,81 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar filtros
     loadFiltros();
 
-    // Calcular fecha del día anterior (Ayer)
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yyyy = yesterday.getFullYear();
-    const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
-    const dd = String(yesterday.getDate()).padStart(2, '0');
-    const yesterdayStr = `${yyyy}-${mm}-${dd}`;
-
-    // Setear fechas por defecto
     const inputInicio = document.getElementById('fechaInicio');
     const inputFin = document.getElementById('fechaFin');
-    if (inputInicio) inputInicio.value = yesterdayStr;
-    if (inputFin) inputFin.value = yesterdayStr;
+
+    // Convierte un Date del calendario a YYYY-MM-DD en hora local.
+    // toISOString() no sirve acá: pasa a UTC y en Colombia (UTC-5) devuelve
+    // el día anterior para cualquier fecha del calendario.
+    function aISOLocal(d) {
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${d.getFullYear()}-${mm}-${dd}`;
+    }
+
+    // Calendarios: se marcan en verde los días que sí tienen descargas en el
+    // parquet, y por defecto arrancan en el último día con datos (no en "hoy",
+    // que casi siempre cae fuera del rango cargado)
+    async function initCalendarios() {
+        if (!inputInicio || !inputFin) return;
+
+        let rango;
+        try {
+            const response = await fetch('/api/rango-fechas');
+            if (!response.ok) throw new Error('No se pudo leer el rango de fechas');
+            rango = await response.json();
+            if (rango.error || !rango.max) throw new Error(rango.error || 'Rango vacío');
+        } catch (error) {
+            // Sin rango se dejan los input date nativos, que siguen siendo usables
+            console.error("Error cargando rango de fechas:", error);
+            const legend = document.getElementById('dateLegend');
+            if (legend) legend.style.display = 'none';
+            return;
+        }
+
+        // Si flatpickr no cargó (CDN caído) los input date nativos siguen vivos
+        if (typeof flatpickr === 'undefined') {
+            inputInicio.value = rango.max;
+            inputFin.value = rango.max;
+            const legend = document.getElementById('dateLegend');
+            if (legend) legend.style.display = 'none';
+            return;
+        }
+
+        const diasConDatos = new Set(rango.dias_con_datos);
+
+        if (flatpickr.l10ns && flatpickr.l10ns.es) flatpickr.localize(flatpickr.l10ns.es);
+
+        // flatpickr necesita inputs de texto: sobre type="date" el navegador
+        // abriría además su propio selector nativo
+        inputInicio.type = 'text';
+        inputFin.type = 'text';
+
+        const configBase = {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            minDate: rango.min,
+            maxDate: rango.max,
+            onDayCreate: (dObj, dStr, fp, dayElem) => {
+                if (diasConDatos.has(aISOLocal(dayElem.dateObj))) {
+                    dayElem.classList.add('con-datos');
+                }
+            }
+        };
+
+        const fpInicio = flatpickr(inputInicio, Object.assign({}, configBase, {
+            defaultDate: rango.max,
+            onChange: ([d]) => { if (d) fpFin.set('minDate', d); }
+        }));
+
+        const fpFin = flatpickr(inputFin, Object.assign({}, configBase, {
+            defaultDate: rango.max,
+            onChange: ([d]) => { if (d) fpInicio.set('maxDate', d); }
+        }));
+    }
+
+    initCalendarios();
 
     // UI Elements
     const form = document.getElementById('uploadForm');
@@ -174,7 +235,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 mainContent.style.display = 'flex';
             } 
             renderDashboard(data);
-            showStatus('Análisis completado', 'success');
+            if (data.aviso) {
+                showStatus(data.aviso, 'error');
+            } else {
+                showStatus('Análisis completado', 'success');
+            }
             
         } catch (error) {
             console.error(error);

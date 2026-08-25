@@ -12,7 +12,10 @@
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
+
+    <!-- Flatpickr CSS (calendario con días marcados) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
@@ -69,13 +72,18 @@
                 <hr style="border-color: var(--card-border); margin-bottom: 10px;">
 
                 <div class="options-wrapper">
-                    <label for="fechaInicio">Fecha Inicial (Opcional):</label>
+                    <label for="fechaInicio">Fecha Inicial:</label>
                     <input type="date" id="fechaInicio">
                 </div>
 
                 <div class="options-wrapper" style="margin-top: 10px;">
-                    <label for="fechaFin">Fecha Final (Opcional):</label>
+                    <label for="fechaFin">Fecha Final:</label>
                     <input type="date" id="fechaFin">
+                </div>
+
+                <div class="date-legend" id="dateLegend">
+                    <span class="legend-row"><span class="day-swatch has-data"></span> Días con descargas registradas</span>
+                    <span class="legend-row"><span class="day-swatch no-data"></span> Días sin datos para procesar</span>
                 </div>
 
                 <div class="options-wrapper" style="margin-top: 10px;">
@@ -171,7 +179,9 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+
     <!-- Script Local -->
     <script src="/static/script.js"></script>
 </body>

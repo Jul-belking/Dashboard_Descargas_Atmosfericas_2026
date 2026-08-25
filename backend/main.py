@@ -181,11 +181,22 @@ async def procesar_datos(
         descargas_coords_rad = np.radians(df_descargas.select(["lat_desc_clean", "lon_desc_clean"]).to_numpy())
         postes_coords_rad = np.radians(df_postes.select(["lat_clean", "lon_clean"]).to_numpy())
 
-        # Construir BallTree sobre DESCARGAS
-        tree = BallTree(descargas_coords_rad, leaf_size=40, metric='haversine')
+        # Sin descargas en el rango (o sin estructuras tras los filtros) no hay
+        # nada que cruzar. BallTree revienta con un array vacio, asi que se salta
+        # el cruce y se responde el mapa sin rayos en vez de devolver un error
+        aviso = None
+        if len(descargas_coords_rad) == 0:
+            indices = [np.array([], dtype=int)] * len(postes_coords_rad)
+            aviso = "No hay descargas registradas en el rango de fechas seleccionado."
+        elif len(postes_coords_rad) == 0:
+            indices = []
+            aviso = "Ninguna estructura coincide con los filtros seleccionados."
+        else:
+            # Construir BallTree sobre DESCARGAS
+            tree = BallTree(descargas_coords_rad, leaf_size=40, metric='haversine')
 
-        # Buscar todos los rayos dentro del radio para cada poste
-        indices = tree.query_radius(postes_coords_rad, r=radius_rad)
+            # Buscar todos los rayos dentro del radio para cada poste
+            indices = tree.query_radius(postes_coords_rad, r=radius_rad)
 
         ids_rayos_a_mostrar = set()
         resumen_impactos = []
@@ -257,7 +268,8 @@ async def procesar_datos(
             },
             "estructuras": estructuras_json,
             "rayos": rayos_json,
-            "impactos": resumen_impactos
+            "impactos": resumen_impactos,
+            "aviso": aviso
         })
 
     except Exception as e:
@@ -298,6 +310,37 @@ async def obtener_filtros():
         return JSONResponse(content={"filtros": jerarquia})
     except Exception as e:
         print(f"Error cargando filtros: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+_cache_rango_fechas = None
+
+@app.get("/api/rango-fechas")
+async def obtener_rango_fechas():
+    # Se cachea porque el parquet no cambia entre peticiones y recorrerlo
+    # completo en cada carga del calendario es caro
+    global _cache_rango_fechas
+    if _cache_rango_fechas is not None:
+        return JSONResponse(content=_cache_rango_fechas)
+
+    try:
+        df = pl.read_parquet(
+            "Gold_Consolidado_Historico_Descargas_Electricas_GPK.parquet",
+            columns=["Fecha"]
+        )
+        fechas = df["Fecha"].drop_nulls().unique().sort()
+        dias = [d.isoformat() for d in fechas.to_list()]
+
+        if not dias:
+            return JSONResponse(content={"error": "El parquet no tiene fechas válidas"}, status_code=500)
+
+        _cache_rango_fechas = {
+            "min": dias[0],
+            "max": dias[-1],
+            "dias_con_datos": dias
+        }
+        return JSONResponse(content=_cache_rango_fechas)
+    except Exception as e:
+        print(f"Error cargando rango de fechas: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
