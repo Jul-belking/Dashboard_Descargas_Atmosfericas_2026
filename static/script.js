@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function populateCampo() {
         if (!filtroCampo) return;
-        filtroCampo.innerHTML = '<option value="">-- Todos --</option>';
+        filtroCampo.innerHTML = '<option value="">TODOS</option>';
         Object.keys(filterHierarchy).forEach(campo => {
             const opt = document.createElement('option');
             opt.value = campo;
@@ -42,8 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filtroCampo) {
         filtroCampo.addEventListener('change', () => {
             const selectedCampo = filtroCampo.value;
-            filtroLocacion.innerHTML = '<option value="">-- Todos --</option>';
-            filtroPortico.innerHTML = '<option value="">-- Todos --</option>';
+            filtroLocacion.innerHTML = '<option value="">TODOS</option>';
+            filtroPortico.innerHTML = '<option value="">TODOS</option>';
             filtroPortico.disabled = true;
 
             if (selectedCampo && filterHierarchy[selectedCampo]) {
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         filtroLocacion.addEventListener('change', () => {
             const selectedCampo = filtroCampo.value;
             const selectedLoc = filtroLocacion.value;
-            filtroPortico.innerHTML = '<option value="">-- Todos --</option>';
+            filtroPortico.innerHTML = '<option value="">TODOS</option>';
 
             if (selectedCampo && selectedLoc && filterHierarchy[selectedCampo][selectedLoc]) {
                 filterHierarchy[selectedCampo][selectedLoc].forEach(port => {
@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setCargando(activo) {
         btnSubmit.disabled = activo;
-        btnText.textContent = activo ? 'Calculando...' : '🚀 Analizar Datos';
+        btnText.textContent = activo ? 'Calculando...' : 'Analizar datos';
         spinner.style.display = activo ? 'block' : 'none';
 
         // Los selects hijos tienen su propio disabled segun la cascada, asi
