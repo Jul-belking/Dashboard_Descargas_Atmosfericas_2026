@@ -155,12 +155,30 @@
 
                 <div class="heat-legend" id="heatLegend" style="display: none;">
                     <span class="heat-label">Criticidad de estructuras</span>
-                    <span class="heat-min"><span id="heatMin">0</span> impactos</span>
+                    <span class="heat-min"><span id="heatMin">0</span></span>
                     <span class="heat-bar"></span>
                     <span class="heat-max"><span id="heatMax">0</span> impactos</span>
+
+                    <span class="heat-item"><span class="ring-demo"></span> Con DPS/DSD</span>
+
+                    <span class="heat-umbral">
+                        <label for="umbralImpactos">Mínimo</label>
+                        <input type="range" id="umbralImpactos" min="0" max="1" value="0" step="1">
+                        <output id="umbralValor">todas</output>
+                    </span>
                 </div>
-                
-                <div id="map"></div>
+
+                <div class="map-wrap">
+                    <div id="map"></div>
+
+                    <aside class="top-panel" id="topPanel" style="display: none;">
+                        <header>
+                            <span>Más afectadas</span>
+                            <button type="button" id="topToggle" aria-expanded="true" aria-controls="topLista" title="Contraer u expandir">−</button>
+                        </header>
+                        <ol id="topLista"></ol>
+                    </aside>
+                </div>
             </section>
 
         </main>

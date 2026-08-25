@@ -3,7 +3,8 @@ let currentData = null; // Store fetched data
 let layers = {
     structures: null,
     radii: null,
-    strikes: null
+    strikes: null,
+    destacado: null
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -298,6 +299,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // El umbral filtra sobre los datos ya cargados: no hace falta volver a
+    // consultar al backend, solo repintar el mapa
+    const sliderUmbral = document.getElementById('umbralImpactos');
+    if (sliderUmbral) {
+        sliderUmbral.addEventListener('input', () => {
+            pintarValorUmbral(parseInt(sliderUmbral.min, 10));
+            if (currentData) renderMap(currentData);
+        });
+    }
+
+    const topToggle = document.getElementById('topToggle');
+    if (topToggle) {
+        topToggle.addEventListener('click', () => {
+            const panel = document.getElementById('topPanel');
+            const plegado = panel.classList.toggle('plegado');
+            topToggle.textContent = plegado ? '+' : '−';
+            topToggle.setAttribute('aria-expanded', String(!plegado));
+        });
+    }
+
     function showStatus(msg, type) {
         statusMessage.textContent = msg;
         statusMessage.className = `status-message status-${type}`;
@@ -330,7 +351,7 @@ function renderDashboard(data) {
     }
 
     // Render Map
-    renderMap(data);
+    renderMap(data, { ajustarVista: true });
 }
 
 // Paradas del gradiente de criticidad. Las mismas que usa la barra de la
@@ -369,7 +390,119 @@ function renderLeyendaCalor(min, max) {
     caja.style.display = 'flex';
 }
 
-function renderMap(data) {
+function umbralActual() {
+    const slider = document.getElementById('umbralImpactos');
+    return slider ? parseInt(slider.value, 10) || 0 : 0;
+}
+
+// El slider se reajusta al rango del recorte visible. Si el valor anterior
+// quedo fuera del nuevo rango se recorta, para no dejar el mapa vacio tras
+// cambiar un filtro
+function configurarUmbral(min, max) {
+    const slider = document.getElementById('umbralImpactos');
+    if (!slider) return;
+    slider.min = min;
+    slider.max = max;
+    if (parseInt(slider.value, 10) > max || parseInt(slider.value, 10) < min) slider.value = min;
+    pintarValorUmbral(min);
+}
+
+function pintarValorUmbral(min) {
+    const slider = document.getElementById('umbralImpactos');
+    const salida = document.getElementById('umbralValor');
+    if (!slider || !salida) return;
+    const v = parseInt(slider.value, 10);
+    salida.textContent = v <= min ? 'todas' : `≥ ${v.toLocaleString('es-CO')}`;
+}
+
+function ocultarTopPanel() {
+    const p = document.getElementById('topPanel');
+    if (p) p.style.display = 'none';
+}
+
+// El mapa dice donde mirar; la lista da el nombre para ir a inspeccionar
+function renderTopPanel(data, min, max) {
+    const panel = document.getElementById('topPanel');
+    const lista = document.getElementById('topLista');
+    if (!panel || !lista) return;
+
+    const rango = max - min || 1;
+    const umbral = umbralActual();
+    const top = data.estructuras
+        .filter(e => (e.impactos || 0) > 0 && (e.impactos || 0) >= umbral)
+        .sort((a, b) => b.impactos - a.impactos)
+        .slice(0, 10);
+
+    if (top.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    lista.innerHTML = '';
+    top.forEach(est => {
+        const t = (est.impactos - min) / rango;
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span class="top-dot" style="background:${colorCriticidad(t)}"></span>
+            <span class="top-tag">${est.id}</span>
+            <span class="top-n">${est.impactos.toLocaleString('es-CO')}</span>
+        `;
+        li.title = `${est.detalles.Circuito} · ${est.impactos} impactos`;
+        li.addEventListener('click', () => {
+            currentMap.setView([est.lat, est.lon], 16, { animate: true });
+            destacarEstructura(est, data);
+        });
+        lista.appendChild(li);
+    });
+    panel.style.display = 'flex';
+}
+
+// Distancia haversine en metros, la misma metrica que usa el BallTree del
+// backend, para que lo resaltado coincida con lo que se conto
+function distanciaMetros(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad;
+    const dLon = (lon2 - lon1) * rad;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Muestra el radio de la estructura y las descargas concretas que cayeron
+// dentro: convierte el "16 impactos" en algo verificable
+function destacarEstructura(est, data) {
+    if (layers.destacado) currentMap.removeLayer(layers.destacado);
+    layers.destacado = L.layerGroup();
+
+    const radio = data.kpis.radio;
+    L.circle([est.lat, est.lon], {
+        radius: radio,
+        color: '#fff',
+        weight: 2,
+        dashArray: '5,5',
+        fill: false
+    }).addTo(layers.destacado);
+
+    data.rayos
+        .filter(r => distanciaMetros(est.lat, est.lon, r.lat, r.lon) <= radio)
+        .forEach(r => {
+            L.circleMarker([r.lat, r.lon], {
+                radius: 4,
+                fillColor: '#fde047',
+                color: '#713f12',
+                weight: 1,
+                fillOpacity: 0.95
+            }).bindPopup(`<b>Corriente:</b> ${r.corriente} kA<br><b>Fecha:</b> ${r.fecha}`)
+              .addTo(layers.destacado);
+        });
+
+    layers.destacado.addTo(currentMap);
+}
+
+// ajustarVista solo va en true cuando llegan datos nuevos: al mover el umbral o
+// cambiar de modo, reencuadrar tiraria abajo el zoom que hizo el usuario
+function renderMap(data, { ajustarVista = false } = {}) {
     if (!currentMap) {
         // Init Map
         let centerLat = data.estructuras.length > 0 ? data.estructuras[0].lat : 4.4;
@@ -387,6 +520,7 @@ function renderMap(data) {
     if (layers.structures) currentMap.removeLayer(layers.structures);
     if (layers.radii) currentMap.removeLayer(layers.radii);
     if (layers.strikes) currentMap.removeLayer(layers.strikes);
+    if (layers.destacado) { currentMap.removeLayer(layers.destacado); layers.destacado = null; }
 
     layers.structures = L.layerGroup();
     layers.radii = L.layerGroup();
@@ -438,12 +572,15 @@ function renderMap(data) {
         layers.structures.addTo(currentMap);
     }
 
-    if (data.estructuras.length > 0) {
+    if (ajustarVista && data.estructuras.length > 0) {
         currentMap.fitBounds(bounds, {padding: [50, 50]});
     }
 
     const leyendaCalor = document.getElementById('heatLegend');
-    if (leyendaCalor && mode !== 'heatmap') leyendaCalor.style.display = 'none';
+    if (mode !== 'heatmap') {
+        if (leyendaCalor) leyendaCalor.style.display = 'none';
+        ocultarTopPanel();
+    }
 
     if (mode === 'timeline') {
         const total = data.rayos.length;
@@ -480,46 +617,63 @@ function renderMap(data) {
         layers.strikes.addTo(currentMap);
 
     } else if (mode === 'heatmap') {
-        // Cada estructura sigue siendo su propio punto, coloreado y dimensionado
-        // segun cuantos impactos recibio. Una mancha difusa perderia el detalle
-        // por estructura, que es justamente lo que se quiere identificar.
         const impactos = data.estructuras.map(e => e.impactos || 0).filter(n => n > 0);
         if (impactos.length === 0) {
             const caja = document.getElementById('heatLegend');
             if (caja) caja.style.display = 'none';
+            ocultarTopPanel();
             return;
         }
 
         const min = Math.min(...impactos);
         const max = Math.max(...impactos);
-        // Con un solo valor distinto no hay rango que normalizar: todo al tope
-        const rango = max - min || 1;
+        configurarUmbral(min, max);
+        dibujarCriticidad(data, min, max);
+        renderLeyendaCalor(min, max);
+        renderTopPanel(data, min, max);
+    }
+}
 
-        data.estructuras.forEach(est => {
-            const n = est.impactos || 0;
-            const t = n > 0 ? (n - min) / rango : 0;
+// Cada estructura sigue siendo su propio punto, coloreado y dimensionado segun
+// cuantos impactos recibio. Una mancha difusa perderia el detalle por
+// estructura, que es justamente lo que se quiere identificar.
+function dibujarCriticidad(data, min, max) {
+    // Con un solo valor distinto no hay rango que normalizar: todo al tope
+    const rango = max - min || 1;
+    const umbral = umbralActual();
 
-            // Las estructuras sin impactos quedan como puntos grises chicos:
-            // sirven para ver el trazado completo de la red y donde no paso nada
-            const sinImpactos = n === 0;
+    data.estructuras.forEach(est => {
+        const n = est.impactos || 0;
+        if (n > 0 && n < umbral) return;
 
-            L.circleMarker([est.lat, est.lon], {
-                radius: sinImpactos ? 3 : 5 + t * 6,
-                fillColor: sinImpactos ? '#6b7280' : colorCriticidad(t),
-                color: sinImpactos ? 'rgba(255,255,255,0.35)' : '#fff',
-                weight: sinImpactos ? 1 : 1.5,
-                opacity: 1,
-                fillOpacity: sinImpactos ? 0.5 : 0.95
-            }).bindPopup(`
-                <b>TAG:</b> ${est.id}<br>
-                <b>Circuito:</b> ${est.detalles.Circuito}<br>
-                <b>Impactos:</b> ${n.toLocaleString('es-CO')}<br>
-                <b>DSD:</b> ${est.detalles.DSD}<br>
-                <b>DPS:</b> ${est.detalles.DPS}
-            `).addTo(layers.strikes);
+        const t = n > 0 ? (n - min) / rango : 0;
+        // Las estructuras sin impactos quedan como puntos grises chicos: dejan
+        // ver el trazado de la red y donde no paso nada. Con umbral activo
+        // estorban, asi que se ocultan
+        const sinImpactos = n === 0;
+        if (sinImpactos && umbral > min) return;
+
+        // La proteccion se codifica en el borde y no en el color, para poder
+        // leer las dos variables a la vez: roja y sin anillo = peor caso
+        const marcador = L.circleMarker([est.lat, est.lon], {
+            radius: sinImpactos ? 3 : 5 + t * 6,
+            fillColor: sinImpactos ? '#6b7280' : colorCriticidad(t),
+            color: '#fff',
+            weight: sinImpactos ? 1 : (est.protegido ? 3 : 1),
+            opacity: sinImpactos ? 0.35 : (est.protegido ? 1 : 0.7),
+            fillOpacity: sinImpactos ? 0.5 : 0.95
         });
 
-        layers.strikes.addTo(currentMap);
-        renderLeyendaCalor(min, max);
-    }
+        marcador.bindPopup(`
+            <b>TAG:</b> ${est.id}<br>
+            <b>Circuito:</b> ${est.detalles.Circuito}<br>
+            <b>Impactos:</b> ${n.toLocaleString('es-CO')}<br>
+            <b>DSD:</b> ${est.detalles.DSD}<br>
+            <b>DPS:</b> ${est.detalles.DPS}
+        `);
+        if (n > 0) marcador.on('click', () => destacarEstructura(est, data));
+        marcador.addTo(layers.strikes);
+    });
+
+    layers.strikes.addTo(currentMap);
 }
