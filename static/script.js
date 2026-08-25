@@ -306,10 +306,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderDashboard(data) {
     // KPIs
-    document.getElementById('kpiTotalEstructuras').textContent = data.kpis.total_estructuras.toLocaleString();
-    document.getElementById('kpiAfectadas').textContent = data.kpis.estructuras_afectadas.toLocaleString();
-    document.getElementById('kpiTotalRayos').textContent = data.kpis.total_rayos.toLocaleString();
+    document.getElementById('kpiTotalEstructuras').textContent = data.kpis.total_estructuras.toLocaleString('es-CO');
+    document.getElementById('kpiAfectadas').textContent = data.kpis.estructuras_afectadas.toLocaleString('es-CO');
+    document.getElementById('kpiTotalRayos').textContent = data.kpis.total_rayos.toLocaleString('es-CO');
     document.getElementById('kpiRadio').textContent = data.kpis.radio;
+
+    // Cuanto del total del rango llego a amenazar una estructura
+    const enRango = data.kpis.total_rayos_rango || 0;
+    document.getElementById('kpiRayosRango').textContent = enRango.toLocaleString('es-CO');
+
+    const proporcion = document.getElementById('kpiProporcion');
+    if (enRango > 0) {
+        const pct = (100 * data.kpis.total_rayos) / enRango;
+        // Por debajo de 0.1% el redondeo a un decimal mostraria "0,0%"
+        const txt = pct > 0 && pct < 0.1 ? '<0,1' : pct.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        proporcion.textContent = `${txt}% del total del rango`;
+    } else {
+        proporcion.textContent = '';
+    }
 
     // Render Map
     renderMap(data);

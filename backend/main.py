@@ -191,6 +191,11 @@ async def procesar_datos(
         if fecha_col:
             df_descargas = df_descargas.sort(fecha_col)
 
+        # Total del rango de fechas, sin recorte geografico ni filtros de
+        # ubicacion: es el denominador contra el que se compara cuantas
+        # descargas llegaron a amenazar una estructura
+        total_rayos_rango = len(df_descargas)
+
         # Convertir a radianes para BallTree (haversine)
         EARTH_RADIUS_M = 6371000.0
         radius_rad = radio_busqueda_metros / EARTH_RADIUS_M
@@ -281,6 +286,7 @@ async def procesar_datos(
                 "total_estructuras": len(df_postes),
                 "estructuras_afectadas": len(resumen_impactos),
                 "total_rayos": len(df_rayos_filtrados),
+                "total_rayos_rango": total_rayos_rango,
                 "radio": radio_busqueda_metros
             },
             "estructuras": estructuras_json,
