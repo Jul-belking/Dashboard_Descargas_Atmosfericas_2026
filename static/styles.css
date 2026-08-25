@@ -266,6 +266,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .flatpickr-calendar.static .flatpickr-current-month input.cur-year { font-size: 0.9rem; font-weight: 600; }
 .flatpickr-calendar.static .flatpickr-prev-month, .flatpickr-calendar.static .flatpickr-next-month { padding: 6px 8px; }
 .flatpickr-calendar.static .flatpickr-prev-month svg, .flatpickr-calendar.static .flatpickr-next-month svg { width: 12px; height: 12px; }
+/* El calendario vive dentro de .options-wrapper, asi que heredaba los estilos
+   oscuros de los selects del sidebar: el desplegable de meses quedaba con
+   texto blanco sobre fondo blanco */
+.flatpickr-calendar.static .flatpickr-monthDropdown-months,
+.flatpickr-calendar.static input.cur-year {
+    width: auto;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0 0.2rem;
+    color: #374151;
+}
+.flatpickr-calendar.static .flatpickr-monthDropdown-months option { background: #ffffff; color: #374151; }
+.flatpickr-calendar.static .flatpickr-monthDropdown-months option:checked { background: #d1fae5; color: #065f46; }
+
 .flatpickr-calendar.static span.flatpickr-weekday { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #9ca3af; }
 .flatpickr-calendar.static .flatpickr-day { max-width: none; flex-basis: 14.2857%; height: 32px; line-height: 32px; font-size: 0.78rem; border-radius: 6px; }
 .flatpickr-calendar.static .flatpickr-day.prevMonthDay, .flatpickr-calendar.static .flatpickr-day.nextMonthDay { opacity: 0.4; }
@@ -274,6 +289,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .flatpickr-day.con-datos:hover { background: #a7f3d0; border-color: #6ee7b7; }
 .flatpickr-day.selected, .flatpickr-day.selected.con-datos, .flatpickr-day.selected:hover { background: var(--accent-primary); border-color: var(--accent-primary); color: #fff; }
 .flatpickr-day.flatpickr-disabled, .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { background: transparent; }
+
+/* El radio no pertenece al bloque de fechas: se separa con aire y una linea
+   para que no se lea como parte de la leyenda del calendario */
+.date-legend + .options-wrapper { margin-top: 0.5rem; padding-top: 1rem; border-top: 1px solid var(--card-border); }
 
 .date-legend { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.72rem; color: var(--text-secondary); }
 .date-legend .legend-row { display: flex; align-items: center; gap: 0.5rem; }
