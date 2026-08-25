@@ -4,7 +4,8 @@ let layers = {
     structures: null,
     radii: null,
     strikes: null,
-    destacado: null
+    destacado: null,
+    calorFondo: null
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -309,6 +310,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // La opacidad se aplica por variable CSS: no hace falta repintar el mapa,
+    // solo cambiar el estilo del canvas
+    const sliderOpacidad = document.getElementById('opacidadCalor');
+    if (sliderOpacidad) {
+        const aplicarOpacidad = () => {
+            const v = parseInt(sliderOpacidad.value, 10);
+            document.documentElement.style.setProperty('--opacidad-calor', v / 100);
+            document.getElementById('opacidadValor').textContent = `${v} %`;
+        };
+        sliderOpacidad.addEventListener('input', aplicarOpacidad);
+        aplicarOpacidad();
+    }
+
     const topToggle = document.getElementById('topToggle');
     if (topToggle) {
         topToggle.addEventListener('click', () => {
@@ -388,6 +402,17 @@ function renderLeyendaCalor(min, max) {
     document.getElementById('heatMin').textContent = min.toLocaleString('es-CO');
     document.getElementById('heatMax').textContent = max.toLocaleString('es-CO');
     caja.style.display = 'flex';
+}
+
+// Un rayo se dibuja igual en toda la app: mismo simbolo en la linea de tiempo
+// que al destacar las descargas de una estructura
+function getBoltIcon(color, tam = 20) {
+    return L.divIcon({
+        html: `<svg width="${tam}" height="${tam}" viewBox="0 0 24 24" style="overflow:visible;"><polygon points="13,2 4,14 12,14 11,22 20,10 12,10" fill="${color}" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
+        className: 'custom-bolt-icon',
+        iconSize: [tam, tam],
+        iconAnchor: [tam / 2, tam * 0.55]
+    });
 }
 
 function umbralActual() {
@@ -487,14 +512,9 @@ function destacarEstructura(est, data) {
     data.rayos
         .filter(r => distanciaMetros(est.lat, est.lon, r.lat, r.lon) <= radio)
         .forEach(r => {
-            L.circleMarker([r.lat, r.lon], {
-                radius: 4,
-                fillColor: '#fde047',
-                color: '#713f12',
-                weight: 1,
-                fillOpacity: 0.95
-            }).bindPopup(`<b>Corriente:</b> ${r.corriente} kA<br><b>Fecha:</b> ${r.fecha}`)
-              .addTo(layers.destacado);
+            L.marker([r.lat, r.lon], { icon: getBoltIcon('#fde047') })
+                .bindPopup(`<b>Corriente:</b> ${r.corriente} kA<br><b>Fecha:</b> ${r.fecha}`)
+                .addTo(layers.destacado);
         });
 
     layers.destacado.addTo(currentMap);
@@ -521,6 +541,7 @@ function renderMap(data, { ajustarVista = false } = {}) {
     if (layers.radii) currentMap.removeLayer(layers.radii);
     if (layers.strikes) currentMap.removeLayer(layers.strikes);
     if (layers.destacado) { currentMap.removeLayer(layers.destacado); layers.destacado = null; }
+    if (layers.calorFondo) { currentMap.removeLayer(layers.calorFondo); layers.calorFondo = null; }
 
     layers.structures = L.layerGroup();
     layers.radii = L.layerGroup();
@@ -584,14 +605,6 @@ function renderMap(data, { ajustarVista = false } = {}) {
 
     if (mode === 'timeline') {
         const total = data.rayos.length;
-        
-        // SVG Icon generator
-        const getBoltIcon = (color) => L.divIcon({
-            html: `<svg width="20" height="20" viewBox="0 0 24 24" style="overflow:visible;"><polygon points="13,2 4,14 12,14 11,22 20,10 12,10" fill="${color}" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
-            className: 'custom-bolt-icon',
-            iconSize: [20, 20],
-            iconAnchor: [10, 11]
-        });
 
         // Simple gradient YlOrRd
         const getColor = (ratio) => {
@@ -641,6 +654,31 @@ function dibujarCriticidad(data, min, max) {
     // Con un solo valor distinto no hay rango que normalizar: todo al tope
     const rango = max - min || 1;
     const umbral = umbralActual();
+
+    const visibles = data.estructuras.filter(e => (e.impactos || 0) >= Math.max(umbral, 1));
+
+    if (typeof L.heatLayer !== 'undefined' && visibles.length > 0) {
+        const puntos = visibles.map(e => [e.lat, e.lon, e.impactos]);
+        layers.calorFondo = L.heatLayer(puntos, {
+            radius: 28,
+            blur: 24,
+            maxZoom: 18,
+            // Sin max explicito la libreria normaliza contra 1.0 y satura todo
+            max: Math.max(...visibles.map(e => e.impactos)),
+            minOpacity: 0.2,
+            gradient: { 0.0: '#1d4ed8', 0.35: '#06b6d4', 0.6: '#facc15', 0.8: '#f97316', 1.0: '#dc2626' }
+        });
+        layers.calorFondo.addTo(currentMap);
+
+        // El plugin cuelga su canvas del overlayPane, donde el SVG de los
+        // marcadores ya existe desde que se creo el mapa, asi que la mancha
+        // termina encima. En vez de mover el canvas a otro pane (el plugin
+        // despues no lo encuentra al removerlo y tira NotFoundError), se manda
+        // el SVG al final: dentro del pane manda el orden de insercion.
+        const overlay = currentMap.getPane('overlayPane');
+        const svg = overlay ? overlay.querySelector('svg') : null;
+        if (svg) overlay.appendChild(svg);
+    }
 
     data.estructuras.forEach(est => {
         const n = est.impactos || 0;

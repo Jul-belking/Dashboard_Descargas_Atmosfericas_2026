@@ -258,7 +258,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .heat-legend .heat-bar { width: 160px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #1d4ed8 0%, #06b6d4 35%, #facc15 60%, #f97316 80%, #dc2626 100%); }
 .heat-legend .heat-item { display: flex; align-items: center; gap: 0.4rem; }
 .heat-legend .ring-demo { width: 13px; height: 13px; border-radius: 50%; background: #f97316; border: 2.5px solid #fff; display: inline-block; }
-.heat-umbral { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+.heat-umbral { display: flex; align-items: center; gap: 0.5rem; }
+.heat-umbral:first-of-type { margin-left: auto; }
+
+/* La mancha es contexto, no el dato: se atenua para que las estructuras
+   sigan siendo lo primero que ve el ojo */
+.leaflet-heatmap-layer { opacity: var(--opacidad-calor, 0.35); transition: opacity 0.15s ease; }
 .heat-umbral input[type="range"] { width: 110px; accent-color: var(--accent-primary); cursor: pointer; }
 .heat-umbral output { min-width: 62px; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
