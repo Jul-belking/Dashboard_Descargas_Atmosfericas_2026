@@ -415,6 +415,26 @@ function getBoltIcon(color, tam = 20) {
     });
 }
 
+// Mismo contenido para el globo al pasar el cursor y para el que queda fijo al
+// hacer clic: la informacion de una estructura es una sola
+function infoEstructura(est) {
+    return `
+        <b>TAG:</b> ${est.id}<br>
+        <b>Circuito:</b> ${est.detalles.Circuito}<br>
+        <b>Impactos:</b> ${(est.impactos || 0).toLocaleString('es-CO')}<br>
+        <b>DSD:</b> ${est.detalles.DSD}<br>
+        <b>DPS:</b> ${est.detalles.DPS}
+    `;
+}
+
+// sticky hace que el globo siga al cursor: con estructuras tan juntas, uno
+// anclado al centro del punto suele quedar tapando a la vecina
+function ligarInfo(marcador, est) {
+    const html = infoEstructura(est);
+    marcador.bindPopup(html);
+    marcador.bindTooltip(html, { sticky: true, direction: 'top', offset: [0, -6], className: 'tooltip-estructura' });
+}
+
 function umbralActual() {
     const slider = document.getElementById('umbralImpactos');
     return slider ? parseInt(slider.value, 10) || 0 : 0;
@@ -563,19 +583,16 @@ function renderMap(data, { ajustarVista = false } = {}) {
         let color = est.protegido ? '#9333ea' : '#2563eb';
 
         // Circle Marker
-        L.circleMarker(latLng, {
+        const marcador = L.circleMarker(latLng, {
             radius: 6,
             fillColor: color,
             color: '#fff',
             weight: 1.5,
             opacity: 1,
             fillOpacity: 1
-        }).bindPopup(`
-            <b>TAG:</b> ${est.id}<br>
-            <b>Circuito:</b> ${est.detalles.Circuito}<br>
-            <b>DSD:</b> ${est.detalles.DSD}<br>
-            <b>DPS:</b> ${est.detalles.DPS}
-        `).addTo(layers.structures);
+        });
+        ligarInfo(marcador, est);
+        marcador.addTo(layers.structures);
 
         // Radius circle (only if few structures to not clutter, or always depending on preference)
         // We'll draw them very subtly
@@ -705,13 +722,7 @@ function dibujarCriticidad(data, min, max) {
             fillOpacity: sinImpactos ? 0.5 : 0.95
         });
 
-        marcador.bindPopup(`
-            <b>TAG:</b> ${est.id}<br>
-            <b>Circuito:</b> ${est.detalles.Circuito}<br>
-            <b>Impactos:</b> ${n.toLocaleString('es-CO')}<br>
-            <b>DSD:</b> ${est.detalles.DSD}<br>
-            <b>DPS:</b> ${est.detalles.DPS}
-        `);
+        ligarInfo(marcador, est);
         if (n > 0) marcador.on('click', () => destacarEstructura(est, data));
         marcador.addTo(layers.strikes);
     });
